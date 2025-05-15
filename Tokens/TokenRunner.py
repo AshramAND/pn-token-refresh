@@ -2,48 +2,50 @@ import os
 import json
 import time
 import requests
+import json
+import os
 
-# Get the directory where this script is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TOKEN_FILE = "/Users/hugo/Desktop/Full/Tokens/token.json"
+API_URL = "https://fleettracker.pacificnational.com.au/api/v1/auth/freightWebTokenRenew"
 
-TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
+# Load the last saved token
+if os.path.exists(TOKEN_FILE):
+    with open(TOKEN_FILE, "r") as f:
+        try:
+            data = json.load(f)
+            current_token = data.get("token")
+        except json.JSONDecodeError:
+            print("❌ Failed to parse token.json")
+            current_token = None
+else:
+    print("❌ token.json not found.")
+    current_token = None
 
-def load_token():
+if not current_token:
+    print("⚠️ No token available to refresh.")
+    exit()
+
+# Set headers with the current token
+headers = {
+    "Authorization": f"Bearer {current_token}",
+    "User-Agent": "Mozilla/5.0"
+}
+
+# Make the refresh request
+response = requests.post(API_URL, headers=headers)
+
+if response.status_code == 200:
     try:
-        with open(TOKEN_PATH, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print("❌ token.json not found.")
-        return None
+        new_token = response.json()["token"]
+        print("✅ Token refreshed.")
 
-def save_token(token_data):
-    with open(TOKEN_PATH, "w") as f:
-        json.dump(token_data, f, indent=4)
+        # Save new token to file
+        with open(TOKEN_FILE, "w") as f:
+            json.dump({"token": new_token}, f)
 
-def refresh_token(current_token):
-    API_URL = "https://fleettracker.pacificnational.com.au/api/v1/auth/freightWebTokenRenew"
-    headers = {
-        "Authorization": f"Bearer {current_token['token']}"
-    }
-    response = requests.post(API_URL, headers=headers)
-    if response.status_code == 200:
-        new_token = response.json()
-        save_token(new_token)
-        print("Token updated!")
-    else:
-        print(f"Failed to refresh token: {response.status_code} {response.text}")
-
-def main():
-    current_token = load_token()
-    if not current_token:
-        print("⚠️ No token available to refresh. Exiting.")
-        return
-    
-    while True:
-        print("Refreshing token...")
-        refresh_token(current_token)
-        print("Sleeping for 1 hour...")
-        time.sleep(3600)
-
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        print("❌ Failed to extract new token:", e)
+        print(response.text)
+else:
+    print(f"❌ Token refresh failed ({response.status_code})")
+    print(response.text)
