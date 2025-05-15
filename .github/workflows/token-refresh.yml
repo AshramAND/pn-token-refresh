@@ -1,28 +1,29 @@
-name: Refresh Token Every Hour
+name: Refresh Token
 
 on:
   schedule:
-    - cron: '0 * * * *'  # every hour
-  workflow_dispatch:     # allow manual run from GitHub UI
+    - cron: '0 * * * *'  # runs every hour
+  workflow_dispatch:    # manual trigger option
 
 jobs:
   refresh-token:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set up Python 3.x
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
       - name: Install dependencies
         run: |
-          cd FULL/tokens
+          cd Tokens
           pip install -r requirements.txt
 
-      - name: Run Token Refresh
+      - name: Run token refresh script
         run: |
-          cd FULL/tokens
-          python TokenRunner.py
+          cd Tokens
+          python app.py
