@@ -1,30 +1,35 @@
-from flask import Flask
 import requests
 import json
 import os
 import logging
-import time
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-TOKEN_FILE = "/Users/hugo/Desktop/Full/Tokens/token.json"
+TOKEN_FILE = "token.json"
 API_URL = "https://fleettracker.pacificnational.com.au/api/v1/auth/freightWebTokenRenew"
 
 logging.basicConfig(level=logging.INFO)
 
-def refresh_token():
-    if not os.path.exists(TOKEN_FILE):
+def load_token():
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "r") as f:
+            try:
+                data = json.load(f)
+                return data.get("token")
+            except json.JSONDecodeError:
+                logging.error("❌ Failed to parse token.json")
+                return None
+    else:
         logging.error("❌ token.json not found.")
-        return False
+        return None
 
-    with open(TOKEN_FILE, "r") as f:
-        try:
-            data = json.load(f)
-            current_token = data.get("token")
-        except json.JSONDecodeError:
-            logging.error("❌ Failed to parse token.json")
-            return False
+def save_token(new_token):
+    with open(TOKEN_FILE, "w") as f:
+        json.dump({"token": new_token}, f)
 
+def refresh_token():
+    current_token = load_token()
     if not current_token:
         logging.warning("⚠️ No token available to refresh.")
         return False
@@ -40,11 +45,8 @@ def refresh_token():
         try:
             new_token = response.json()["token"]
             logging.info("✅ Token refreshed.")
-
-            with open(TOKEN_FILE, "w") as f:
-                json.dump({"token": new_token}, f)
+            save_token(new_token)
             return True
-
         except Exception as e:
             logging.error(f"❌ Failed to extract new token: {e}")
             logging.error(response.text)
@@ -54,22 +56,16 @@ def refresh_token():
         logging.error(response.text)
         return False
 
-@app.before_first_request
+# Manual startup call to refresh token when the app loads
 def startup_refresh():
-    logging.info("App started — attempting to refresh token...")
+    logging.info("App starting — attempting to refresh token...")
     refresh_token()
 
-@app.route('/')
+startup_refresh()
+
+@app.route("/")
 def index():
-    return "Token Refresh Service is running."
+    return jsonify({"message": "Token refresh API running."})
 
-@app.route('/status')
-def status():
-    if os.path.exists(TOKEN_FILE):
-        last_modified = os.path.getmtime(TOKEN_FILE)
-        return f"Token file last updated: {time.ctime(last_modified)}"
-    else:
-        return "Token file not found."
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
