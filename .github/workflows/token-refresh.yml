@@ -1,41 +1,37 @@
-name: Refresh Token Hourly
+name: Token Refresh
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *' # every hour at minute 0
   workflow_dispatch:
 
 jobs:
-  refresh-token:
+  refresh_token:
     runs-on: ubuntu-latest
 
+    env:
+      # Force DNS resolution to use Google's public DNS
+      RES_OPTIONS: 'nameserver 8.8.8.8'
+
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Check DNS resolution
-        run: nslookup fleettracker.pacificnational.com.au
+      - name: Confirm DNS resolution via Google DNS
+        run: nslookup fleettracker.pacificnational.com.au 8.8.8.8
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        working-directory: ./Tokens
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Tokens/requirements.txt
 
       - name: Run token refresh script
-        working-directory: ./Tokens
-        run: python TokenRunner.py
+        run: python Tokens/TokenRunner.py
 
-      - name: Commit updated token
-        working-directory: ./Tokens
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add token.json
-          git commit -m "Refresh token"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Confirm token file updated
+        run: cat Tokens/token.json
