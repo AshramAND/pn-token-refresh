@@ -1,16 +1,16 @@
 name: Refresh Token Hourly
-  
+
 on:
   schedule:
     - cron: '0 * * * *'  # Runs every hour on the hour
-  workflow_dispatch:     # Allows manual trigger too
+  workflow_dispatch:     # Allows manual trigger
 
 jobs:
   refresh-token:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -34,6 +34,4 @@ jobs:
           git commit -m "Update token.json from scheduled refresh" || echo "No changes to commit"
           git push
         env:
-          # You'll need to provide a GitHub token for pushing changes
-          # By default GITHUB_TOKEN is available with permission to push
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
