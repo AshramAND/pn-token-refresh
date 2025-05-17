@@ -3,7 +3,7 @@ import requests
 import sys
 
 TOKEN_FILE = 'Tokens/token.json'  # Adjust path if needed
-API_URL = 'https://fleettracker.pacificnational.com.au/api/v2/freightWebTokenRenew'
+API_URL = "https://fleettracker.pacificnational.com.au/api/v1/auth/freightWebTokenRenew"
 
 def load_token():
     try:
