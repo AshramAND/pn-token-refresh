@@ -1,91 +1,55 @@
-import os
 import json
-import subprocess
 import requests
+import os
+from datetime import datetime
 
-# === CONFIGURATION ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
+TOKEN_FILE = os.path.join(os.path.dirname(__file__), 'token.json')
 API_URL = "https://fleettracker.pacificnational.com.au/api/v1/auth/freightWebTokenRenew"
 
-# === TOKEN FUNCTIONS ===
 def load_token():
-    try:
-        with open(TOKEN_PATH, "r") as f:
-            token = json.load(f)
-            print("📦 Loaded token from file.", flush=True)
-            return token
-    except FileNotFoundError:
-        print("❌ token.json not found.", flush=True)
-        return None
+    with open(TOKEN_FILE, 'r') as f:
+        data = json.load(f)
+    print("📦 Loaded token from file.")
+    return data['token']
 
-def save_token(token_data):
-    with open(TOKEN_PATH, "w") as f:
-        json.dump(token_data, f, indent=4)
-    print("💾 Token saved to file.", flush=True)
+def save_token(new_token):
+    # The API returns an object with token string + metadata,
+    # save it back as a full JSON to the token file
+    with open(TOKEN_FILE, 'w') as f:
+        json.dump(new_token, f, indent=2)
+    print("💾 Saved new token to file.")
 
-def refresh_token(current_token):
-    print("🔁 Attempting to refresh token...", flush=True)
+def refresh_token(old_token):
     headers = {
-        "Authorization": f"Bearer {current_token['token']}",
+        "Authorization": f"Bearer {old_token}",
         "Content-Type": "application/json"
     }
+    # Payload is JSON with just the token string, no other fields
     payload = {
-        "token": current_token['token']
+        "token": old_token
     }
-
+    print("🔁 Attempting to refresh token...")
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
-        if response.status_code == 200:
-            new_token = response.json()
-            print("✅ Token successfully refreshed.", flush=True)
-            save_token(new_token)
-            return new_token
-        else:
-            print(f"❌ Failed to refresh token: {response.status_code} {response.text}", flush=True)
-            return None
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Connection error: {e}", flush=True)
+        response = requests.post(API_URL, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        new_token_json = response.json()
+        print(f"✅ Token refreshed successfully at {datetime.now()}")
+        return new_token_json
+    except requests.RequestException as e:
+        print(f"❌ Connection error or bad response: {e}")
         return None
 
-# === GIT FUNCTIONS ===
-def push_token_to_github():
-    try:
-        repo_root = os.path.abspath(os.path.join(BASE_DIR, ".."))
-        subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
-
-        subprocess.run(
-            ["git", "commit", "-m", "Auto-update token [skip ci]"],
-            cwd=repo_root,
-            check=False  # Allow no changes without crashing
-        )
-
-        subprocess.run(["git", "push", "--force"], cwd=repo_root, check=True)
-
-        print("✅ Token force pushed to GitHub.", flush=True)
-
-    except subprocess.CalledProcessError as e:
-        print(f"⚠️ Git push failed: {e}", flush=True)
-
-# === MAIN SCRIPT ENTRY ===
 def main():
-    print("🚀 Token refresh script started", flush=True)
+    print("🚀 Token refresh script started")
+    old_token = load_token()
+    new_token = refresh_token(old_token)
 
-    current_token = load_token()
-    if not current_token:
-        print("⚠️ No token available to refresh. Exiting.", flush=True)
-        return
-
-    new_token = refresh_token(current_token)
-    if new_token:
-        push_token_to_github()
+    if new_token and 'token' in new_token:
+        save_token(new_token)
     else:
-        print("⚠️ Using old token due to refresh failure.", flush=True)
+        print("⚠️ Using old token due to refresh failure.")
 
-    print("✅ Script completed.\n", flush=True)
+    print("✅ Script completed.")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"💥 Fatal error: {e}", flush=True)
+    main()
