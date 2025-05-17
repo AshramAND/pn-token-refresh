@@ -1,9 +1,9 @@
 name: refresh_token
- 
+
 on:
   schedule:
-    - cron: '0 * * * *'   # Runs every hour at minute 0
-  workflow_dispatch:      # Allows manual triggering
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:    # manual trigger
 
 jobs:
   refresh_token:
@@ -13,19 +13,17 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
+
+      - name: Add fleettracker IP to hosts file
+        run: |
+          echo "203.21.182.25 fleettracker.pacificnational.com.au" | sudo tee -a /etc/hosts
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r Tokens/requirements.txt
-
-      - name: Show DNS resolution (debug)
-        run: |
-          nslookup fleettracker.pacificnational.com.au 8.8.8.8
+        run: pip install -r Tokens/requirements.txt
 
       - name: Run token refresh script
         run: python Tokens/TokenRunner.py
