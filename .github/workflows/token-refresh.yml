@@ -1,4 +1,41 @@
-- name: Test DNS resolution
-  run: |
-    nslookup fleettracker.pacificnational.com.au
-    ping -c 3 fleettracker.pacificnational.com.au
+name: Refresh Token Hourly
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check DNS resolution
+        run: nslookup fleettracker.pacificnational.com.au
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: ./Tokens
+        run: pip install -r requirements.txt
+
+      - name: Run token refresh script
+        working-directory: ./Tokens
+        run: python TokenRunner.py
+
+      - name: Commit updated token
+        working-directory: ./Tokens
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add token.json
+          git commit -m "Refresh token"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
