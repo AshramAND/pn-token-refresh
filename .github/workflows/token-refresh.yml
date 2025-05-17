@@ -1,29 +1,34 @@
-name: refresh_token
- 
+name: Refresh Token
+
 on:
   schedule:
     - cron: '0 * * * *'  # every hour
-  workflow_dispatch:    # manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write  # allow pushing back to repo
 
 jobs:
   refresh_token:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-
-      - name: Add fleettracker IP to hosts file
-        run: |
-          echo "203.21.182.25 fleettracker.pacificnational.com.au" | sudo tee -a /etc/hosts
+          python-version: '3.x'
 
       - name: Install dependencies
         run: pip install -r Tokens/requirements.txt
 
       - name: Run token refresh script
         run: python Tokens/TokenRunner.py
+
+      - name: Commit and push token update
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add Tokens/token.json
+          git commit -m "🔄 Refresh token: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "No changes to commit"
+          git push
